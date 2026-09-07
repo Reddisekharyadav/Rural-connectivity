@@ -43,6 +43,7 @@ import { LogisticsModule } from './logistics/logistics.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { FinancialModule } from './financial/financial.module';
+import { WorkforceModule } from './workforce/workforce.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { FinancialModule } from './financial/financial.module';
     MarketplaceModule,
     KnowledgeModule,
     FinancialModule,
+    WorkforceModule,
     AuthModule,
     UsersModule,
     FarmersModule,

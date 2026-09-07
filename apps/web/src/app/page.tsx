@@ -506,6 +506,14 @@ export default function FuturisticHome() {
             </Link>
 
             <Link
+              href="/workforce"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20 border border-teal-500/40 text-teal-300 font-bold text-xs hover:bg-teal-500/30 transition shadow-sm ml-1 whitespace-nowrap"
+            >
+              <Users className="w-3.5 h-3.5 text-teal-400" />
+              <span>Workforce & Skills Hub</span>
+            </Link>
+
+            <Link
               href="/ai"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs hover:bg-emerald-500/30 transition shadow-sm ml-1 whitespace-nowrap"
             >

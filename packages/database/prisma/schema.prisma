@@ -185,6 +185,9 @@ model Location {
   transportStops       TransportStop[]
   transportRequestsOrigin TransportRequest[] @relation("PickupLocation")
   transportRequestsDest   TransportRequest[] @relation("DeliveryLocation")
+  jobPostings             JobPosting[]
+  attendanceRecords       AttendanceRecord[]
+  workerProfiles          WorkerProfile[]
 
   @@index([district, mandal, village])
   @@index([latitude, longitude])
@@ -273,6 +276,10 @@ model User {
   financialConsents        FinancialConsent[]
   creditProfile            CreditProfile?
   financingRequests        FinancingRequest[]
+
+  // Rural Workforce, Jobs & Skill Marketplace (Milestone 19)
+  createdJobPostings       JobPosting[]           @relation("CreatedJobPostings")
+  createdJobOffers         JobOffer[]             @relation("CreatedJobOffers")
 }
 
 model UserRoleEntry {
@@ -335,6 +342,7 @@ model Farm {
   fieldVisits        FieldVisit[]
   cropKnowledgeLinks CropKnowledge[]
   financialPeriods   FarmFinancialPeriod[]
+  jobPostings        JobPosting[]
 
   @@index([farmerId])
   @@index([locationId])
@@ -381,6 +389,7 @@ model Project {
   updatedAt             DateTime                       @updatedAt
 
   requirements          ProjectRequirement[]
+  jobPostings           JobPosting[]
 
   @@index([contractorId])
   @@index([organizationId])
@@ -462,29 +471,44 @@ model TractorAttachment {
 // ----------------------------------------------------
 
 model WorkerProfile {
-  id                 String             @id @default(uuid())
-  userId             String             @unique
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  experienceYears    Int?               @default(0)
-  serviceRadiusKm    Float?             @default(10.0) // km
-  serviceRadius      Float?             @default(10.0) // km
-  expectedDailyRate  Float?             @default(550.0) // INR
-  dailyRate          Float?             @default(550.0) // INR
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  rating             Float              @default(0.0)
-  completedJobs      Int                @default(0)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                 String                   @id @default(uuid())
+  userId             String                   @unique
+  user               User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseLocationId     String?
+  baseLocation       Location?                @relation(fields: [baseLocationId], references: [id])
+  experienceYears    Int?                     @default(0)
+  serviceRadiusKm    Float?                   @default(10.0) // km
+  serviceRadius      Float?                   @default(10.0) // km (backward compatibility alias)
+  expectedDailyRate  Float?                   @default(550.0) // INR
+  dailyRate          Float?                   @default(550.0) // INR (backward compatibility alias)
+  expectedHourlyRate Float?                   @default(80.0)
+  employmentType     EmploymentType           @default(DAILY_WAGE)
+  availabilityStatus WorkerAvailabilityStatus @default(AVAILABLE)
+  verificationStatus VerificationStatus       @default(UNVERIFIED)
+  rating             Float                    @default(0.0)
+  completedJobs      Int                      @default(0)
+  bio                String?                  @db.Text
+  status             String                   @default("ACTIVE")
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
 
   skills             WorkerSkill[]
+  certifications     WorkerCertification[]
+  experienceLedger   WorkerExperience[]
+  jobApplications    JobApplication[]
+  jobOffers          JobOffer[]
+  jobAssignments     JobAssignment[]
+  attendanceRecords  AttendanceRecord[]
+  workHistories      WorkerWorkHistory[]
 }
 
 model Skill {
-  id       String        @id @default(uuid())
-  name     String        @unique // e.g. "Tractor Operator", "Sprayer Operator", "Pump Technician"
-  category String        // e.g. "Machinery Operation", "Crop Care", "Irrigation"
+  id              String           @id @default(uuid())
+  name            String           @unique // e.g. "Tractor Operator", "Sprayer Operator", "Pump Technician"
+  category        String           // e.g. "Machinery Operation", "Crop Care", "Irrigation"
 
-  workers  WorkerSkill[]
+  workers         WorkerSkill[]
+  jobRequirements JobRequirement[]
 }
 
 model WorkerSkill {
@@ -493,7 +517,12 @@ model WorkerSkill {
   worker          WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
   skillId         String
   skill           Skill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  experienceYears Int?          @default(1)
+  skillLevel      SkillLevel    @default(INTERMEDIATE)
+  yearsExperience Int?          @default(1)
+  experienceYears Int?          @default(1) // alias for backward compatibility
+  isPrimary       Boolean       @default(false)
+  verified        Boolean       @default(false)
+  verifiedAt      DateTime?
 
   @@unique([workerId, skillId])
   @@index([workerId])
@@ -1013,6 +1042,7 @@ model Organization {
   produceAggregations ProduceAggregation[]
   vehicles            Vehicle[]
   transportRequests   TransportRequest[]
+  jobPostings         JobPosting[]
 
   @@index([type])
   @@index([locationId])
@@ -2448,6 +2478,335 @@ model FinancingRepayment {
   @@index([applicationId])
   @@index([status])
 }
+
+// ----------------------------------------------------
+// 19. Rural Workforce, Jobs & Skill Marketplace (Milestone 19)
+// ----------------------------------------------------
+
+enum EmploymentType {
+  DAILY_WAGE
+  HOURLY
+  SEASONAL
+  CONTRACT
+  PART_TIME
+  FULL_TIME
+  PROJECT_BASED
+}
+
+enum WorkerAvailabilityStatus {
+  AVAILABLE
+  BUSY
+  UNAVAILABLE
+  LOOKING_FOR_WORK
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum CertificationVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum JobType {
+  AGRICULTURAL_LABOR
+  HARVESTING
+  SOWING
+  SPRAYING
+  IRRIGATION
+  TRACTOR_OPERATION
+  MACHINERY_OPERATION
+  MACHINERY_REPAIR
+  DRIVING
+  CONSTRUCTION
+  ELECTRICAL
+  PLUMBING
+  WELDING
+  GENERAL_LABOR
+  OTHER
+}
+
+enum JobPayType {
+  DAILY
+  HOURLY
+  FIXED_PROJECT
+  PER_ACRE
+  PER_UNIT
+  NEGOTIABLE
+}
+
+enum JobPostingStatus {
+  DRAFT
+  PUBLISHED
+  APPLICATIONS_OPEN
+  SHORTLISTING
+  STAFFING
+  READY
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+  CANCELLED
+  EXPIRED
+  DISPUTED
+}
+
+enum JobApplicationStatus {
+  SUBMITTED
+  VIEWED
+  SHORTLISTED
+  REJECTED
+  WITHDRAWN
+  OFFERED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum JobOfferStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum JobAssignmentStatus {
+  ASSIGNED
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  DISPUTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  LEAVE
+}
+
+enum AttendanceVerificationMethod {
+  SELF_REPORTED
+  CONTRACTOR_CONFIRMED
+  OTP
+  LOCATION
+}
+
+model WorkerCertification {
+  id                  String                          @id @default(uuid())
+  workerId            String
+  worker              WorkerProfile                   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  name                String                          // e.g. "Certified Precision Sprayer Operator", "Heavy Tractor Driving License"
+  issuingOrganization String                          // e.g. "National Skill Development Corporation (NSDC)", "PJTSAU Agronomy Extension"
+  certificateNumber   String?
+  issuedDate          DateTime?
+  expiryDate          DateTime?
+  verificationStatus  CertificationVerificationStatus @default(PENDING)
+  documentReference   String?
+  createdAt           DateTime                        @default(now())
+  updatedAt           DateTime                        @updatedAt
+
+  @@index([workerId])
+  @@index([verificationStatus])
+}
+
+model WorkerExperience {
+  id               String        @id @default(uuid())
+  workerId         String
+  worker           WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  jobTitle         String        // e.g. "Lead Harvester Operator", "Senior Sprayer Technician"
+  organizationName String        // e.g. "Sri Sai Agri Contracting", "Tangipalli FPO"
+  description      String?       @db.Text
+  startDate        DateTime
+  endDate          DateTime?
+  isCurrent        Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+
+  @@index([workerId])
+}
+
+model JobPosting {
+  id              String           @id @default(uuid())
+  createdById     String
+  createdBy       User             @relation("CreatedJobPostings", fields: [createdById], references: [id], onDelete: Cascade)
+  organizationId  String?
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  projectId       String?
+  project         Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  farmId          String?
+  farm            Farm?            @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  farmActivityId  String?
+  title           String           // e.g. "Cotton Harvesting Workers (50 Acres)", "Tractor & Rotavator Operator"
+  description     String?          @db.Text
+  jobType         JobType          @default(AGRICULTURAL_LABOR)
+  locationId      String?
+  location        Location?        @relation(fields: [locationId], references: [id])
+  startDate       DateTime
+  endDate         DateTime?
+  startTime       String           @default("07:00")
+  endTime         String           @default("17:00")
+  workersRequired Int              @default(1)
+  payType         JobPayType       @default(DAILY)
+  minPay          Float            @default(500.0)
+  maxPay          Float            @default(800.0)
+  currency        String           @default("INR")
+  status          JobPostingStatus @default(DRAFT)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  requirements    JobRequirement[]
+  applications    JobApplication[]
+  offers          JobOffer[]
+  assignments     JobAssignment[]
+
+  @@index([createdById])
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([farmId])
+  @@index([status])
+  @@index([jobType])
+}
+
+model JobRequirement {
+  id                    String        @id @default(uuid())
+  jobPostingId          String
+  jobPosting            JobPosting    @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  resourceType          ResourceType  @default(WORKER)
+  quantity              Int           @default(1)
+  skillId               String?
+  skill                 Skill?        @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  skillLevel            SkillLevel?   @default(INTERMEDIATE)
+  minExperienceYears    Int?          @default(1)
+  certificationRequired Boolean       @default(false)
+  equipmentRequired     Boolean       @default(false)
+  notes                 String?
+
+  @@index([jobPostingId])
+  @@index([skillId])
+}
+
+model JobApplication {
+  id           String               @id @default(uuid())
+  jobPostingId String
+  jobPosting   JobPosting           @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  workerId     String
+  worker       WorkerProfile        @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  message      String?              @db.Text
+  expectedPay  Float?
+  status       JobApplicationStatus @default(SUBMITTED)
+  appliedAt    DateTime             @default(now())
+  reviewedAt   DateTime?
+
+  assignments  JobAssignment[]
+
+  @@unique([jobPostingId, workerId])
+  @@index([jobPostingId])
+  @@index([workerId])
+  @@index([status])
+}
+
+model JobOffer {
+  id           String         @id @default(uuid())
+  jobPostingId String
+  jobPosting   JobPosting     @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  workerId     String
+  worker       WorkerProfile  @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  createdById  String
+  createdBy    User           @relation("CreatedJobOffers", fields: [createdById], references: [id], onDelete: Cascade)
+  payAmount    Float
+  payType      JobPayType     @default(DAILY)
+  startDate    DateTime
+  endDate      DateTime?
+  message      String?        @db.Text
+  expiresAt    DateTime?
+  status       JobOfferStatus @default(OFFERED)
+  createdAt    DateTime       @default(now())
+
+  assignments  JobAssignment[]
+
+  @@index([jobPostingId])
+  @@index([workerId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model JobAssignment {
+  id               String              @id @default(uuid())
+  jobPostingId     String
+  jobPosting       JobPosting          @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  workerId         String
+  worker           WorkerProfile       @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  jobApplicationId String?
+  jobApplication   JobApplication?     @relation(fields: [jobApplicationId], references: [id], onDelete: SetNull)
+  jobOfferId       String?
+  jobOffer         JobOffer?           @relation(fields: [jobOfferId], references: [id], onDelete: SetNull)
+  startDate        DateTime
+  endDate          DateTime?
+  payAmount        Float
+  payType          JobPayType          @default(DAILY)
+  status           JobAssignmentStatus @default(ASSIGNED)
+  assignedAt       DateTime            @default(now())
+  completedAt      DateTime?
+
+  attendanceRecords AttendanceRecord[]
+  workHistories     WorkerWorkHistory[]
+
+  @@index([jobPostingId])
+  @@index([workerId])
+  @@index([status])
+}
+
+model AttendanceRecord {
+  id                 String                       @id @default(uuid())
+  assignmentId       String
+  assignment         JobAssignment                @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  workerId           String
+  worker             WorkerProfile                @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  date               DateTime
+  checkInAt          DateTime?
+  checkOutAt         DateTime?
+  status             AttendanceStatus             @default(PRESENT)
+  locationId         String?
+  location           Location?                    @relation(fields: [locationId], references: [id])
+  verificationMethod AttendanceVerificationMethod @default(CONTRACTOR_CONFIRMED)
+  notes              String?
+  createdAt          DateTime                     @default(now())
+
+  @@index([assignmentId])
+  @@index([workerId])
+  @@index([date])
+}
+
+model WorkerWorkHistory {
+  id               String         @id @default(uuid())
+  workerId         String
+  worker           WorkerProfile  @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  jobAssignmentId  String?
+  jobAssignment    JobAssignment? @relation(fields: [jobAssignmentId], references: [id], onDelete: SetNull)
+  jobTitle         String         // e.g. "Cotton Harvesting Operator"
+  organizationName String         // e.g. "Tangipalli FPO"
+  startDate        DateTime
+  endDate          DateTime?
+  totalHours       Float          @default(8.0)
+  totalDays        Float          @default(1.0)
+  earnings         Float          @default(0.0)
+  currency         String         @default("INR")
+  completionStatus String         @default("COMPLETED") // COMPLETED, CANCELLED
+  rating           Float?
+  createdAt        DateTime       @default(now())
+
+  @@index([workerId])
+}
+
 
 
 
