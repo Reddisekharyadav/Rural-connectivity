@@ -44,6 +44,7 @@ import { MarketplaceModule } from './marketplace/marketplace.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { FinancialModule } from './financial/financial.module';
 import { WorkforceModule } from './workforce/workforce.module';
+import { AssetsModule } from './assets/assets.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { WorkforceModule } from './workforce/workforce.module';
     KnowledgeModule,
     FinancialModule,
     WorkforceModule,
+    AssetsModule,
     AuthModule,
     UsersModule,
     FarmersModule,

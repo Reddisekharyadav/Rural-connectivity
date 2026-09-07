@@ -188,6 +188,8 @@ model Location {
   jobPostings             JobPosting[]
   attendanceRecords       AttendanceRecord[]
   workerProfiles          WorkerProfile[]
+  assetsBased             Asset[]              @relation("AssetBaseLocation")
+  rentalRequestsLocation  RentalRequest[]      @relation("RentalRequestLocation")
 
   @@index([district, mandal, village])
   @@index([latitude, longitude])
@@ -280,6 +282,17 @@ model User {
   // Rural Workforce, Jobs & Skill Marketplace (Milestone 19)
   createdJobPostings       JobPosting[]           @relation("CreatedJobPostings")
   createdJobOffers         JobOffer[]             @relation("CreatedJobOffers")
+
+  // Rural Asset Rental, Equipment Sharing & Machinery Marketplace (Milestone 20)
+  ownedAssets              Asset[]                @relation("UserOwnedAssets")
+  rentalListings           RentalListing[]        @relation("UserRentalListings")
+  rentalRequests           RentalRequest[]        @relation("UserRentalRequests")
+  rentalOffersReceived     RentalOffer[]          @relation("ProviderRentalOffers")
+  rentalBookingsAsOwner    RentalBooking[]        @relation("OwnerRentalBookings")
+  rentalBookingsAsRenter   RentalBooking[]        @relation("RenterRentalBookings")
+  assetHandoversGiven      AssetHandover[]        @relation("HandoverGiver")
+  assetHandoversReceived   AssetHandover[]        @relation("HandoverReceiver")
+  assetInspectionsConducted AssetInspection[]     @relation("AssetInspectedBy")
 }
 
 model UserRoleEntry {
@@ -1043,6 +1056,8 @@ model Organization {
   vehicles            Vehicle[]
   transportRequests   TransportRequest[]
   jobPostings         JobPosting[]
+  assets              Asset[]              @relation("OrganizationAssets")
+  assetAccessPolicies AssetAccessPolicy[]
 
   @@index([type])
   @@index([locationId])
@@ -2807,7 +2822,431 @@ model WorkerWorkHistory {
   @@index([workerId])
 }
 
+// ----------------------------------------------------
+// 20. Rural Asset Rental, Equipment Sharing & Machinery Marketplace (Milestone 20)
+// ----------------------------------------------------
 
+enum AssetType {
+  TRACTOR
+  SPRAYER
+  PUMP
+  WATER_PUMP
+  TRAILER
+  ROTAVATOR
+  PLOUGH
+  CULTIVATOR
+  HARROW
+  SEED_DRILL
+  LAND_LEVELER
+  HARVESTER
+  IRRIGATION_EQUIPMENT
+  THRESHER
+  OTHER
+}
 
+enum AssetCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+  NON_FUNCTIONAL
+}
 
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  UNDER_MAINTENANCE
+  RENTED
+  RESERVED
+  DAMAGED
+  RETIRED
+  SUSPENDED
+}
+
+enum RentalMode {
+  EQUIPMENT_ONLY
+  EQUIPMENT_WITH_OPERATOR
+  EQUIPMENT_WITH_DELIVERY
+  EQUIPMENT_OPERATOR_DELIVERY
+}
+
+enum AssetPricingModel {
+  PER_HOUR
+  PER_DAY
+  PER_ACRE
+  PER_TRIP
+  PER_UNIT
+  FIXED
+  NEGOTIABLE
+}
+
+enum DepositStatus {
+  NOT_REQUIRED
+  PENDING
+  HELD
+  PARTIALLY_REFUNDED
+  REFUNDED
+  PARTIALLY_FORFEITED
+  FORFEITED
+}
+
+enum RentalRequestStatus {
+  DRAFT
+  OPEN
+  MATCHED
+  OFFER_RECEIVED
+  BOOKED
+  CANCELLED
+  EXPIRED
+}
+
+enum RentalOfferStatus {
+  OFFERED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum RentalBookingStatus {
+  CONFIRMED
+  READY
+  HANDED_OVER
+  IN_USE
+  RETURN_PENDING
+  RETURNED
+  INSPECTED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum HandoverStatus {
+  PENDING
+  COMPLETED
+  DISPUTED
+}
+
+enum AssetInspectionType {
+  PRE_RENTAL
+  POST_RENTAL
+  DAMAGE
+  MAINTENANCE
+}
+
+enum AssetInspectionCondition {
+  GOOD
+  MINOR_DAMAGE
+  MAJOR_DAMAGE
+  NON_FUNCTIONAL
+}
+
+enum MaintenanceType {
+  ROUTINE_SERVICE
+  REPAIR
+  OIL_CHANGE
+  TYRE_REPLACEMENT
+  ENGINE_SERVICE
+  INSPECTION
+  OTHER
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AssetAccessType {
+  PUBLIC_RENTAL
+  MEMBERS_ONLY
+  APPROVAL_REQUIRED
+  INTERNAL_ONLY
+}
+
+model Asset {
+  id                  String             @id @default(uuid())
+  ownerId             String
+  owner               User               @relation("UserOwnedAssets", fields: [ownerId], references: [id], onDelete: Cascade)
+  organizationId      String?
+  organization        Organization?      @relation("OrganizationAssets", fields: [organizationId], references: [id], onDelete: SetNull)
+  assetType           AssetType          @default(TRACTOR)
+  name                String             // e.g. "John Deere 5050D Tractor"
+  brand               String             // e.g. "John Deere"
+  model               String             // e.g. "5050D PowerPro"
+  serialNumber        String?
+  registrationNumber  String?
+  manufacturingYear   Int?
+  capacity            Float?             // e.g. 50 (HP) or 500 (Litres) or 5 (HP pump)
+  capacityUnit        String?            // "HP", "LITRE", "INCH", "TON"
+  condition           AssetCondition     @default(GOOD)
+  status              AssetStatus        @default(ACTIVE)
+  baseLocationId      String
+  baseLocation        Location           @relation("AssetBaseLocation", fields: [baseLocationId], references: [id])
+  description         String?
+  hourlyRate          Float?
+  dailyRate           Float?
+  rating              Float              @default(0.0)
+  totalRentals        Int                @default(0)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  specifications      AssetSpecification[]
+  attachments         AssetAttachment[]  @relation("ParentAsset")
+  attachedTo          AssetAttachment[]  @relation("ChildAttachment")
+  rentalListings      RentalListing[]
+  rentalOffers        RentalOffer[]
+  rentalBookings      RentalBooking[]
+  handovers           AssetHandover[]
+  inspections         AssetInspection[]
+  maintenanceRecords  MaintenanceRecord[]
+  accessPolicies      AssetAccessPolicy[]
+
+  @@index([ownerId])
+  @@index([organizationId])
+  @@index([assetType])
+  @@index([status])
+  @@index([baseLocationId])
+}
+
+model AssetSpecification {
+  id        String   @id @default(uuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  key       String   // e.g. "hp", "fuelType", "pipeDiameter", "tankCapacity"
+  value     String   // e.g. "55", "DIESEL", "3", "500"
+  unit      String?  // e.g. "HP", "INCH", "LITRE"
+  createdAt DateTime @default(now())
+
+  @@index([assetId])
+  @@index([key])
+}
+
+model AssetAttachment {
+  id                 String          @id @default(uuid())
+  assetId            String
+  asset              Asset           @relation("ParentAsset", fields: [assetId], references: [id], onDelete: Cascade)
+  attachmentAssetId  String?
+  attachmentAsset    Asset?          @relation("ChildAttachment", fields: [attachmentAssetId], references: [id], onDelete: SetNull)
+  attachmentType     AttachmentType  @default(ROTAVATOR)
+  compatible         Boolean         @default(true)
+  notes              String?
+  createdAt          DateTime        @default(now())
+
+  @@index([assetId])
+  @@index([attachmentAssetId])
+}
+
+model RentalListing {
+  id                String            @id @default(uuid())
+  assetId           String
+  asset             Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  ownerId           String
+  owner             User              @relation("UserRentalListings", fields: [ownerId], references: [id], onDelete: Cascade)
+  title             String            // e.g. "50 HP Tractor with Operator & Rotavator"
+  description       String?
+  rentalMode        RentalMode        @default(EQUIPMENT_ONLY)
+  pricingModel      AssetPricingModel @default(PER_DAY)
+  price             Float             // e.g. 4500.0 (Daily rate)
+  currency          String            @default("INR")
+  minimumDuration   Int               @default(1) // e.g. 1 (Day or Hour)
+  maximumDuration   Int?
+  requiresOperator  Boolean           @default(false)
+  deliveryAvailable Boolean           @default(false)
+  pickupAvailable   Boolean           @default(true)
+  securityDeposit   Float?            @default(0.0)
+  status            String            @default("ACTIVE") // ACTIVE, PAUSED, ARCHIVED
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([assetId])
+  @@index([ownerId])
+  @@index([rentalMode])
+  @@index([status])
+}
+
+model RentalDeposit {
+  id               String         @id @default(uuid())
+  rentalBookingId  String         @unique
+  rentalBooking    RentalBooking  @relation(fields: [rentalBookingId], references: [id], onDelete: Cascade)
+  amount           Float          // e.g. 2000.0
+  currency         String         @default("INR")
+  status           DepositStatus  @default(NOT_REQUIRED)
+  paymentId        String?
+  refundedAmount   Float          @default(0.0)
+  forfeitedAmount  Float          @default(0.0)
+  reason           String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status])
+}
+
+model RentalRequest {
+  id           String              @id @default(uuid())
+  createdById  String
+  createdBy    User                @relation("UserRentalRequests", fields: [createdById], references: [id], onDelete: Cascade)
+  assetType    AssetType           @default(TRACTOR)
+  locationId   String
+  location     Location            @relation("RentalRequestLocation", fields: [locationId], references: [id])
+  startDate    DateTime
+  endDate      DateTime?
+  startTime    String?             // e.g. "07:00"
+  endTime      String?             // e.g. "18:00"
+  rentalMode   RentalMode          @default(EQUIPMENT_ONLY)
+  quantity     Int                 @default(1)
+  requirements Json?               // JSON metadata: { "minHp": 50, "attachment": "ROTAVATOR", "operatorNeeded": true }
+  status       RentalRequestStatus @default(OPEN)
+  createdAt    DateTime            @default(now())
+
+  offers       RentalOffer[]
+  bookings     RentalBooking[]
+
+  @@index([createdById])
+  @@index([assetType])
+  @@index([status])
+}
+
+model RentalOffer {
+  id               String            @id @default(uuid())
+  rentalRequestId  String
+  rentalRequest    RentalRequest     @relation(fields: [rentalRequestId], references: [id], onDelete: Cascade)
+  assetId          String
+  asset            Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  providerId       String
+  provider         User              @relation("ProviderRentalOffers", fields: [providerId], references: [id], onDelete: Cascade)
+  operatorId       String?
+  priceQuoteId     String?
+  offeredRate      Float             // e.g. 4200.0 / day
+  rentalMode       RentalMode        @default(EQUIPMENT_ONLY)
+  message          String?
+  expiresAt        DateTime?
+  status           RentalOfferStatus @default(OFFERED)
+  createdAt        DateTime          @default(now())
+
+  bookings         RentalBooking[]
+
+  @@index([rentalRequestId])
+  @@index([assetId])
+  @@index([providerId])
+  @@index([status])
+}
+
+model RentalBooking {
+  id               String              @id @default(uuid())
+  rentalRequestId  String?
+  rentalRequest    RentalRequest?      @relation(fields: [rentalRequestId], references: [id], onDelete: SetNull)
+  rentalOfferId    String?
+  rentalOffer      RentalOffer?        @relation(fields: [rentalOfferId], references: [id], onDelete: SetNull)
+  assetId          String
+  asset            Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  ownerId          String
+  owner            User                @relation("OwnerRentalBookings", fields: [ownerId], references: [id], onDelete: Cascade)
+  renterId         String
+  renter           User                @relation("RenterRentalBookings", fields: [renterId], references: [id], onDelete: Cascade)
+  operatorId       String?
+  startDate        DateTime
+  endDate          DateTime?
+  startTime        String?
+  endTime          String?
+  rentalMode       RentalMode          @default(EQUIPMENT_ONLY)
+  totalAmount      Float               @default(0.0)
+  priceQuoteId     String?
+  status           RentalBookingStatus @default(CONFIRMED)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  deposit          RentalDeposit?
+  handovers        AssetHandover[]
+  inspections      AssetInspection[]
+
+  @@index([assetId])
+  @@index([ownerId])
+  @@index([renterId])
+  @@index([status])
+}
+
+model AssetHandover {
+  id               String          @id @default(uuid())
+  rentalBookingId  String
+  rentalBooking    RentalBooking   @relation(fields: [rentalBookingId], references: [id], onDelete: Cascade)
+  assetId          String
+  asset            Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  handedOverById   String
+  handedOverBy     User            @relation("HandoverGiver", fields: [handedOverById], references: [id], onDelete: Cascade)
+  receivedById     String
+  receivedBy       User            @relation("HandoverReceiver", fields: [receivedById], references: [id], onDelete: Cascade)
+  handoverAt       DateTime        @default(now())
+  condition        AssetCondition  @default(GOOD)
+  fuelLevel        Float?          // 0 to 100%
+  meterReading     Float?          // Hours or KM
+  notes            String?
+  status           HandoverStatus  @default(COMPLETED)
+  createdAt        DateTime        @default(now())
+
+  @@index([rentalBookingId])
+  @@index([assetId])
+}
+
+model AssetInspection {
+  id                 String                   @id @default(uuid())
+  rentalBookingId    String?
+  rentalBooking      RentalBooking?           @relation(fields: [rentalBookingId], references: [id], onDelete: SetNull)
+  assetId            String
+  asset              Asset                    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  inspectionType     AssetInspectionType      @default(PRE_RENTAL)
+  inspectedById      String
+  inspectedBy        User                     @relation("AssetInspectedBy", fields: [inspectedById], references: [id], onDelete: Cascade)
+  condition          AssetInspectionCondition @default(GOOD)
+  meterReading       Float?
+  fuelLevel          Float?
+  damageReported     Boolean                  @default(false)
+  damageCostEstimate Float?                   @default(0.0)
+  notes              String?
+  createdAt          DateTime                 @default(now())
+
+  @@index([rentalBookingId])
+  @@index([assetId])
+  @@index([inspectedById])
+}
+
+model MaintenanceRecord {
+  id                String            @id @default(uuid())
+  assetId           String
+  asset             Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  maintenanceType   MaintenanceType   @default(ROUTINE_SERVICE)
+  description       String
+  serviceProviderId String?
+  cost              Float             @default(0.0)
+  currency          String            @default("INR")
+  performedAt       DateTime          @default(now())
+  nextDueAt         DateTime?
+  meterReading      Float?
+  status            MaintenanceStatus @default(COMPLETED)
+  createdAt         DateTime          @default(now())
+
+  @@index([assetId])
+  @@index([maintenanceType])
+  @@index([status])
+}
+
+model AssetAccessPolicy {
+  id                 String          @id @default(uuid())
+  assetId            String
+  asset              Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  organizationId     String
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessType         AssetAccessType @default(PUBLIC_RENTAL)
+  memberEligibility  String?         // e.g. "ALL_MEMBERS", "GOLD_TIER_FARMERS"
+  pricingRuleId      String?
+  approvalRequired   Boolean         @default(false)
+  status             String          @default("ACTIVE")
+  createdAt          DateTime        @default(now())
+
+  @@index([assetId])
+  @@index([organizationId])
+  @@index([accessType])
+}
 

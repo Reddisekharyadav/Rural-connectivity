@@ -514,6 +514,14 @@ export default function FuturisticHome() {
             </Link>
 
             <Link
+              href="/assets"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs hover:bg-amber-500/30 transition shadow-sm ml-1 whitespace-nowrap"
+            >
+              <Wrench className="w-3.5 h-3.5 text-amber-400" />
+              <span>Asset Rental & Machinery Grid</span>
+            </Link>
+
+            <Link
               href="/ai"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs hover:bg-emerald-500/30 transition shadow-sm ml-1 whitespace-nowrap"
             >
