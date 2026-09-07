@@ -62,3 +62,4 @@ import { WorkforceHistoryController } from './history/work-history.controller';
   ],
 })
 export class WorkforceModule {}
+

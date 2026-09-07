@@ -113,3 +113,4 @@ export class WorkforceWorkerService {
     return Array.from(this.workers.values());
   }
 }
+

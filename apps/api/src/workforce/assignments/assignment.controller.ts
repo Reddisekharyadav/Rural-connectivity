@@ -49,3 +49,4 @@ export class WorkforceAssignmentController {
     return this.assignmentService.cancelAssignment(id, reason);
   }
 }
+

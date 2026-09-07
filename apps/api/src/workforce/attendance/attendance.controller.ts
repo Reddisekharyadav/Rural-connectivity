@@ -43,3 +43,4 @@ export class WorkforceAttendanceController {
     return this.attendanceService.confirmBySupervisor(id, activeSupervisorId, notes);
   }
 }
+

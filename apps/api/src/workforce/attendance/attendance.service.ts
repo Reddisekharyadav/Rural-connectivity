@@ -118,3 +118,4 @@ export class WorkforceAttendanceService {
     return record;
   }
 }
+

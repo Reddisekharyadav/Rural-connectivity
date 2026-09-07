@@ -37,3 +37,4 @@ export class WorkforceHistoryController {
     return this.historyService.recordCompletion(dto);
   }
 }
+

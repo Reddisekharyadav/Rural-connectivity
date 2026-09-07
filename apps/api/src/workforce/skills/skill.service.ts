@@ -206,3 +206,4 @@ export class WorkforceSkillService {
     return { success: true, removedId: skillRecordId };
   }
 }
+

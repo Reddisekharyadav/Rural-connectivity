@@ -122,3 +122,4 @@ export class WorkforceHistoryService {
     return newHistory;
   }
 }
+

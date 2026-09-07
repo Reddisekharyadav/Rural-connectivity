@@ -48,3 +48,4 @@ export class WorkforceApplicationController {
     return this.appService.withdrawApplication(id, activeWorkerId);
   }
 }
+

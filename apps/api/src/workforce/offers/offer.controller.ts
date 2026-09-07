@@ -44,3 +44,4 @@ export class WorkforceOfferController {
     return this.offerService.declineOffer(id, activeWorkerId, reason);
   }
 }
+

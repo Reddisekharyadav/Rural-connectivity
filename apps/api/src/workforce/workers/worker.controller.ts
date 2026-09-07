@@ -39,3 +39,4 @@ export class WorkforceWorkerController {
     return this.workerService.getWorkerById(id);
   }
 }
+

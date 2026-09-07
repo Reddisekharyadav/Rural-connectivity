@@ -125,3 +125,4 @@ export class WorkforceAssignmentService {
     return asgn;
   }
 }
+

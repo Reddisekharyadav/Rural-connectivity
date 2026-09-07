@@ -101,3 +101,4 @@ export class WorkforceOfferService {
     return offer;
   }
 }
+

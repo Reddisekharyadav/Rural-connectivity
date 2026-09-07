@@ -44,3 +44,4 @@ export class WorkforceSkillController {
     return this.skillService.removeWorkerSkill(activeWorkerId, id);
   }
 }
+
