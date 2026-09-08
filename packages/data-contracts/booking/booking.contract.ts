@@ -40,3 +40,4 @@ export interface BookingCancelledV1 {
   reason: string;
   refundAmount?: number;
 }
+

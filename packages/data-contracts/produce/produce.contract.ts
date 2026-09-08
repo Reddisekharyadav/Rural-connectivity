@@ -24,3 +24,4 @@ export interface ProduceSoldV1 {
   totalAmount: number;
   soldAt: string;
 }
+

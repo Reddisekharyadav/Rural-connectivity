@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { MockPaymentProvider } from './providers/mock.provider';
-import { LedgerService } from '../finance/ledger.service';
-import { SettlementService } from '../finance/settlement.service';
+import { LedgerService } from '../finance/ledger/ledger.service';
+import { SettlementService } from '../finance/settlements/settlement.service';
 
 export type PaymentStatus =
   | 'CREATED'
@@ -117,7 +117,8 @@ export class PaymentsService {
     // Initialize settlement record
     await this.settlementService.createSettlement({
       providerId: payeeId,
-      bookingId: dto.bookingId,
+      referenceType: 'SERVICE_BOOKING',
+      referenceId: dto.bookingId,
       amount: Math.round(dto.amount * 0.95),
     });
 

@@ -263,5 +263,49 @@ export class LedgerService {
       status: isBalanced ? 'HEALTHY_BALANCED' : 'IMBALANCE_DETECTED',
     };
   }
+
+  async recordPaymentTransaction(params: {
+    bookingId: string;
+    payerId: string;
+    providerId: string;
+    totalAmount: number;
+    platformFeeRatePct?: number;
+  }) {
+    const feeRate = params.platformFeeRatePct !== undefined ? params.platformFeeRatePct : 0.05;
+    const platformFee = Math.round(params.totalAmount * feeRate);
+    const providerNet = params.totalAmount - platformFee;
+
+    return this.postDoubleEntry({
+      type: 'PAYMENT',
+      category: 'SERVICE_EARNING',
+      referenceType: 'SERVICE_BOOKING',
+      referenceId: params.bookingId,
+      payerId: params.payerId,
+      payeeId: params.providerId,
+      amount: params.totalAmount,
+      currency: 'INR',
+      description: `Payment for booking ${params.bookingId}`,
+      entries: [
+        {
+          accountType: 'CUSTOMER_CLEARING',
+          accountId: params.payerId,
+          entryType: 'DEBIT',
+          amount: params.totalAmount,
+        },
+        {
+          accountType: 'PLATFORM_REVENUE',
+          accountId: 'platform-treasury',
+          entryType: 'CREDIT',
+          amount: platformFee,
+        },
+        {
+          accountType: 'WALLET_AVAILABLE',
+          accountId: params.providerId,
+          entryType: 'CREDIT',
+          amount: providerNet,
+        },
+      ],
+    });
+  }
 }
 

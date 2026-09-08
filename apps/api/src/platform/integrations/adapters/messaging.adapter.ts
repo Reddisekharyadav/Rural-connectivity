@@ -40,3 +40,4 @@ export class MessagingAdapter implements IntegrationAdapter {
     return { deliveryReceipt: 'DELIVRD', timestamp: new Date().toISOString() };
   }
 }
+

@@ -38,3 +38,4 @@ export class IntegrationRegistryService {
     return Array.from(this.adapters.values());
   }
 }
+

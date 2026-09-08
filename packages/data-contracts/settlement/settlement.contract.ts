@@ -17,3 +17,4 @@ export interface SettlementCompletedV1 {
   utrReference?: string;
   settledAt: string;
 }
+

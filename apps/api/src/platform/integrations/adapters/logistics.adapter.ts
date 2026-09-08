@@ -40,3 +40,4 @@ export class LogisticsAdapter implements IntegrationAdapter {
     return { received: true, acknowledgedAt: new Date().toISOString() };
   }
 }
+

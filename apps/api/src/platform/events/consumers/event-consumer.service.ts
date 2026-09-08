@@ -55,3 +55,4 @@ export class EventConsumerService {
     return this.processedEventsStore.has(key);
   }
 }
+

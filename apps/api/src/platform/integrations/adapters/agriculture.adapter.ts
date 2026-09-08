@@ -39,3 +39,4 @@ export class AgricultureAdapter implements IntegrationAdapter {
     };
   }
 }
+

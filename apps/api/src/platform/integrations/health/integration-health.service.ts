@@ -42,3 +42,4 @@ export class IntegrationHealthService {
     return results;
   }
 }
+

@@ -30,3 +30,4 @@ export interface OrderDeliveredV1 {
   deliveryProofUrl?: string;
   receiverName?: string;
 }
+

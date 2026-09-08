@@ -34,3 +34,4 @@ export interface TransportDeliveredV1 {
   receiverSignatureUrl?: string;
   finalWeightTons?: number;
 }
+

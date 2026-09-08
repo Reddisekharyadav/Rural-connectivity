@@ -22,7 +22,7 @@ import {
   ExternalAnalyticsDto,
 } from '../dto/platform.dto';
 
-@Controller('v1')
+@Controller(['api/v1', 'v1'])
 export class PlatformV1Controller {
   private farms: ExternalFarmDto[] = [
     {

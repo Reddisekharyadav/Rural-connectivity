@@ -28,3 +28,4 @@ export interface RentalReturnedV1 {
   returnedAt: string;
   depositRefunded: number;
 }
+

@@ -40,3 +40,4 @@ export const hiTranslations: Record<string, string> = {
   'msg.sync_success': 'ऑफ़लाइन परिवर्तन सफलतापूर्वक समन्वयित किए गए',
   'msg.voice_listening': 'हिंदी, तेलुगु या अंग्रेजी में बोलें...',
 };
+
