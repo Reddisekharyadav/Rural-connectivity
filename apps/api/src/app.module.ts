@@ -46,6 +46,7 @@ import { FinancialModule } from './financial/financial.module';
 import { WorkforceModule } from './workforce/workforce.module';
 import { AssetsModule } from './assets/assets.module';
 import { CommerceModule } from './commerce/commerce.module';
+import { PlatformModule } from './platform/platform.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { CommerceModule } from './commerce/commerce.module';
       envFilePath: '.env.local',
     }),
     EventsModule,
+    PlatformModule,
     GeoModule,
     VerificationModule,
     TrustModule,

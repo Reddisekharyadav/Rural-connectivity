@@ -319,6 +319,14 @@ model User {
   providerEarnings         ProviderEarning[]
   settlements              Settlement[]
   withdrawalRequests       WithdrawalRequest[]
+
+  // Rural Data Platform, Interoperability & Open Platform (Milestone 23)
+  apiClients               ApiClient[]
+  webhookSubscriptions     WebhookSubscription[]
+  dataExportJobs           DataExportJob[]        @relation("UserExportJobs")
+  syncOperations           SyncOperation[]
+  dataConsents             DataConsent[]          @relation("UserDataConsents")
+  platformDevices          PlatformDevice[]
 }
 
 model UserRoleEntry {
@@ -1085,6 +1093,13 @@ model Organization {
   assets              Asset[]              @relation("OrganizationAssets")
   assetAccessPolicies AssetAccessPolicy[]
   businesses          BusinessProfile[]
+
+  // Rural Data Platform, Interoperability & Open Platform (Milestone 23)
+  apiClients          ApiClient[]
+  webhookSubscriptions WebhookSubscription[]
+  integrations        Integration[]
+  dataExportJobs      DataExportJob[]        @relation("OrgExportJobs")
+  dataConsents        DataConsent[]          @relation("OrgDataConsents")
 
   @@index([type])
   @@index([locationId])
@@ -4010,6 +4025,425 @@ model FinancialAuditLog {
   @@index([action])
   @@index([resourceType, resourceId])
 }
+
+// ----------------------------------------------------
+// 23. Rural Data Platform, Interoperability & Open Platform (Milestone 23)
+// ----------------------------------------------------
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+  DEAD_LETTER
+}
+
+enum ApiEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
+enum ApiClientStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum WebhookSubscriptionStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  RETRYING
+  DEAD_LETTER
+}
+
+enum IntegrationType {
+  LOGISTICS
+  PAYMENTS
+  FINANCIAL
+  AGRICULTURE
+  GOVERNMENT
+  FPO
+  ERP
+  ACCOUNTING
+  MESSAGING
+  IDENTITY
+  OTHER
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+enum HealthStatus {
+  HEALTHY
+  DEGRADED
+  DOWN
+  UNKNOWN
+}
+
+enum ExportType {
+  FARMER_ACTIVITY
+  WORKER_ATTENDANCE
+  ORDERS_FINANCIAL
+  CUSTOM
+}
+
+enum ExportFormat {
+  CSV
+  JSON
+  PDF
+}
+
+enum ExportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum SyncOpType {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+  CONFLICT
+}
+
+enum DataClassification {
+  PUBLIC
+  INTERNAL
+  SENSITIVE
+  HIGHLY_SENSITIVE
+}
+
+enum DataConsentPurpose {
+  FARM_DATA_SHARING
+  FINANCIAL_DATA_SHARING
+  MARKET_DATA_SHARING
+  RESEARCH_DATA_SHARING
+  LOGISTICS_SHARING
+  CREDIT_ASSESSMENT
+  CUSTOM
+}
+
+model OutboxEvent {
+  id             String       @id @default(uuid())
+  eventId        String       @unique
+  eventType      String       // e.g. "booking.confirmed", "job.created", "order.delivered"
+  eventVersion   Int          @default(1)
+  aggregateType  String       // "Booking", "WorkRequest", "Order", "Payment", etc.
+  aggregateId    String
+  actorId        String?
+  organizationId String?
+  correlationId  String?
+  causationId    String?
+  payload        Json
+  status         OutboxStatus @default(PENDING)
+  attemptCount   Int          @default(0)
+  maxAttempts    Int          @default(5)
+  availableAt    DateTime     @default(now())
+  publishedAt    DateTime?
+  lastError      String?
+  createdAt      DateTime     @default(now())
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model ProcessedEvent {
+  id          String   @id @default(uuid())
+  consumerId  String   // e.g. "notification-worker", "settlement-consumer", "fpo-webhook-worker"
+  eventId     String
+  processedAt DateTime @default(now())
+
+  @@unique([consumerId, eventId])
+  @@index([eventId])
+  @@index([consumerId])
+}
+
+model ApiClient {
+  id             String          @id @default(uuid())
+  organizationId String?
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userId         String?
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name           String          // e.g. "Tandur FPO ERP Client"
+  environment    ApiEnvironment  @default(SANDBOX)
+  status         ApiClientStatus @default(ACTIVE)
+  scopes         String[]        // ["farms:read", "jobs:read", "orders:write"]
+  createdAt      DateTime        @default(now())
+  lastUsedAt     DateTime?
+
+  apiKeys        ApiKey[]
+  oauthTokens    OAuthToken[]
+  requestLogs    ApiRequestLog[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([status])
+}
+
+model ApiKey {
+  id          String       @id @default(uuid())
+  apiClientId String
+  apiClient   ApiClient    @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  keyPrefix   String       // e.g. "rc_live_abc12" or "rc_test_xyz78"
+  keyHash     String       @unique // SHA-256 hash of the complete API key
+  status      ApiKeyStatus @default(ACTIVE)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([apiClientId])
+  @@index([keyPrefix])
+  @@index([status])
+}
+
+model OAuthClient {
+  id               String       @id @default(uuid())
+  clientId         String       @unique
+  clientSecretHash String
+  name             String
+  redirectUris     String[]
+  organizationId   String?
+  status           String       @default("ACTIVE")
+  createdAt        DateTime     @default(now())
+
+  tokens           OAuthToken[]
+
+  @@index([clientId])
+}
+
+model OAuthToken {
+  id            String       @id @default(uuid())
+  apiClientId   String?
+  apiClient     ApiClient?   @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  oauthClient   OAuthClient? @relation(fields: [oauthClientId], references: [id], onDelete: Cascade)
+  oauthClientId String?
+  accessToken   String       @unique
+  refreshToken  String?      @unique
+  scopes        String[]
+  expiresAt     DateTime
+  createdAt     DateTime     @default(now())
+
+  @@index([apiClientId])
+  @@index([accessToken])
+}
+
+model WebhookSubscription {
+  id               String                    @id @default(uuid())
+  organizationId   String?
+  organization     Organization?             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpointUrl      String
+  secretReference  String                    // Secret used for HMAC-SHA256 signing
+  subscribedEvents String[]                  // ["booking.confirmed", "order.delivered", "payment.succeeded"]
+  status           WebhookSubscriptionStatus @default(ACTIVE)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  deliveries       WebhookDelivery[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([status])
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid())
+  subscriptionId String
+  subscription   WebhookSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  eventId        String
+  attempt        Int                   @default(1)
+  status         WebhookDeliveryStatus @default(PENDING)
+  responseCode   Int?
+  responseTimeMs Float?
+  deliveredAt    DateTime?
+  lastError      String?
+  payload        Json?
+  createdAt      DateTime              @default(now())
+
+  @@index([subscriptionId])
+  @@index([eventId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Integration {
+  id                     String            @id @default(uuid())
+  organizationId         String?
+  organization           Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type                   IntegrationType   @default(OTHER)
+  name                   String            // e.g. "Tandur FPO Custom ERP", "Razorpay Payment Router", "Delhivery Logistics"
+  status                 IntegrationStatus @default(ACTIVE)
+  configurationReference String?           // Masked config or vault secret pointer
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  healthRecords          IntegrationHealth[]
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+}
+
+model IntegrationHealth {
+  id            String       @id @default(uuid())
+  integrationId String
+  integration   Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  status        HealthStatus @default(HEALTHY)
+  lastCheckedAt DateTime     @default(now())
+  latencyMs     Float        @default(45.0)
+  errorRate     Float        @default(0.0)
+  lastError     String?
+
+  @@index([integrationId])
+  @@index([status])
+  @@index([lastCheckedAt])
+}
+
+model DataExportJob {
+  id             String        @id @default(uuid())
+  requestedById  String
+  requestedBy    User          @relation("UserExportJobs", fields: [requestedById], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation("OrgExportJobs", fields: [organizationId], references: [id], onDelete: SetNull)
+  type           ExportType    @default(CUSTOM)
+  format         ExportFormat  @default(CSV)
+  filters        Json?
+  status         ExportStatus  @default(QUEUED)
+  fileReference  String?       // Download URL or secure storage URI
+  fileSize       Int?          // Size in bytes
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+  completedAt    DateTime?
+
+  @@index([requestedById])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model SyncOperation {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId       String
+  device         PlatformDevice  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  operationId    String          @unique // Client generated UUID for idempotency
+  operationType  SyncOpType      @default(CREATE)
+  entityType     String          // "WorkRequest", "AttendanceRecord", "ProduceListing", etc.
+  entityId       String
+  payload        Json
+  status         SyncStatus      @default(PENDING)
+  entityVersion  Int             @default(1)
+  serverVersion  Int             @default(1)
+  conflictReason String?
+  createdAt      DateTime        @default(now())
+  syncedAt       DateTime?
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([status])
+  @@index([entityType, entityId])
+}
+
+model PlatformDevice {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceType    String          @default("ANDROID") // "ANDROID", "IOS", "WEB_PWA"
+  appVersion    String          @default("1.0.0")
+  deviceVersion String?
+  locale        String          @default("te") // "te", "en", "hi"
+  lastSyncAt    DateTime?
+  status        String          @default("ACTIVE")
+  createdAt     DateTime        @default(now())
+
+  syncOperations SyncOperation[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model DataConsent {
+  id             String             @id @default(uuid())
+  userId         String
+  user           User               @relation("UserDataConsents", fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization?      @relation("OrgDataConsents", fields: [organizationId], references: [id], onDelete: SetNull)
+  purpose        DataConsentPurpose @default(FARM_DATA_SHARING)
+  scope          String[]           // ["farms:location", "crops:yield", "finances:ledger_summary"]
+  status         ConsentStatus      @default(GRANTED)
+  grantedAt      DateTime           @default(now())
+  revokedAt      DateTime?
+  expiresAt      DateTime?
+  version        Int                @default(1)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([purpose])
+}
+
+model DataAccessPolicy {
+  id                 String             @id @default(uuid())
+  resource           String             // "Farm", "WorkRequest", "LedgerEntry", "Order"
+  action             String             // "READ", "WRITE", "EXPORT", "ANALYZE"
+  role               RoleType?
+  organizationScope  Boolean            @default(false)
+  dataClassification DataClassification @default(INTERNAL)
+  conditions         Json?
+
+  @@index([resource, action])
+  @@index([dataClassification])
+}
+
+model ApiRequestLog {
+  id             String     @id @default(uuid())
+  requestId      String     @unique
+  userId         String?
+  organizationId String?
+  apiClientId    String?
+  apiClient      ApiClient? @relation(fields: [apiClientId], references: [id], onDelete: SetNull)
+  endpoint       String
+  httpMethod     String     // "GET", "POST", "PUT", "DELETE"
+  statusCode     Int
+  latencyMs      Float
+  ipAddress      String?
+  userAgent      String?
+  timestamp      DateTime   @default(now())
+
+  @@index([apiClientId])
+  @@index([endpoint])
+  @@index([statusCode])
+  @@index([timestamp])
+}
+
 
 
 

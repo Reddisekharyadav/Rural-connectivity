@@ -1,0 +1,14 @@
+{
+  "name": "@ruralconnect/i18n",
+  "version": "1.0.0",
+  "description": "Regional language localization dictionaries and translation helper for RuralConnect Platform",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

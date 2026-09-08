@@ -121,3 +121,4 @@ export class WalletHoldService {
     return active.reduce((sum, h) => sum + h.amount, 0);
   }
 }
+
