@@ -1,27 +1,37 @@
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { LedgerService } from './ledger.service';
-import { SettlementService } from './settlement.service';
+import { LedgerService } from './ledger/ledger.service';
+import { SettlementService } from './settlements/settlement.service';
+import { WalletService } from './wallets/wallet.service';
+import { FinancialTransactionService } from './transactions/financial-transaction.service';
 
 @Controller('finance')
 export class FinanceController {
   constructor(
     private readonly ledgerService: LedgerService,
-    private readonly settlementService: SettlementService
+    private readonly settlementService: SettlementService,
+    private readonly walletService: WalletService,
+    private readonly txService: FinancialTransactionService
   ) {}
 
   @Get('ledger/transactions')
-  async getTransactions() {
-    return this.ledgerService.getTransactions();
+  async getTransactions(@Query('userId') userId?: string) {
+    return this.txService.getTransactions({ userId });
   }
 
   @Get('ledger/entries')
-  async getLedgerEntries() {
-    return this.ledgerService.getLedgerEntries();
+  async getLedgerEntries(@Query('accountId') accountId?: string) {
+    return this.ledgerService.getLedgerEntries({ accountId });
   }
 
   @Get('earnings/me')
-  async getMyEarnings(@Query('providerId') providerId?: string) {
-    return this.ledgerService.getProviderEarnings(providerId || 'to-suresh-002');
+  async getMyEarnings(@Query('providerId') providerId = 'to-suresh-002') {
+    const wallet = await this.walletService.getOrCreateWallet(providerId);
+    return {
+      providerId,
+      availableBalance: wallet.balance?.availableBalance || 0,
+      pendingBalance: wallet.balance?.pendingBalance || 0,
+      heldBalance: wallet.balance?.heldBalance || 0,
+    };
   }
 
   @Get('settlements')
@@ -42,11 +52,8 @@ export class FinanceController {
     return this.settlementService.processSettlement(id, body?.bankReference);
   }
 
-  @Post('admin/settlements/:bookingId/hold')
-  async holdSettlement(
-    @Param('bookingId') bookingId: string,
-    @Body() body: { reason: string }
-  ) {
-    return this.settlementService.putOnHold(bookingId, body.reason);
+  @Post('admin/settlements/:id/hold')
+  async holdSettlement(@Param('id') id: string, @Body() body: { reason: string }) {
+    return this.settlementService.putOnHold(id, body.reason);
   }
 }

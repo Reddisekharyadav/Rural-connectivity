@@ -310,6 +310,15 @@ model User {
   buyerEnquiries           ProductEnquiry[]       @relation("BuyerEnquiries")
   buyerCommerceQuotes      CommerceQuote[]        @relation("BuyerCommerceQuotes")
   buyerCommerceOrders      CommerceOrder[]        @relation("BuyerCommerceOrders")
+
+  // Rural Identity, Wallet & Unified Transaction Layer (Milestone 22)
+  walletAccounts           WalletAccount[]
+  payoutDestinations       PayoutDestination[]
+  payerTransactions        FinancialTransaction[] @relation("PayerTransactions")
+  payeeTransactions        FinancialTransaction[] @relation("PayeeTransactions")
+  providerEarnings         ProviderEarning[]
+  settlements              Settlement[]
+  withdrawalRequests       WithdrawalRequest[]
 }
 
 model UserRoleEntry {
@@ -3634,5 +3643,373 @@ model CommerceOrderItem {
   @@index([orderId])
   @@index([businessProductId])
 }
+
+// ====================================================
+// Milestone 22: Rural Identity, Wallet & Unified Transaction Layer Enums
+// ====================================================
+
+enum WalletAccountStatus {
+  ACTIVE
+  FROZEN
+  SUSPENDED
+  CLOSED
+}
+
+enum WalletHoldReason {
+  RENTAL_DEPOSIT
+  DISPUTE
+  PENDING_SETTLEMENT
+  REFUND_PENDING
+  RISK_REVIEW
+}
+
+enum WalletHoldStatus {
+  ACTIVE
+  RELEASED
+  CAPTURED
+  EXPIRED
+}
+
+enum FinancialTransactionType {
+  PAYMENT
+  REFUND
+  EARNING
+  SETTLEMENT
+  COMMISSION
+  ADJUSTMENT
+  DEPOSIT
+  DEPOSIT_REFUND
+  DEPOSIT_FORFEIT
+  WITHDRAWAL
+}
+
+enum FinancialTransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REVERSED
+  DISPUTED
+}
+
+enum FinancialCategory {
+  PRODUCE_SALE
+  SERVICE_EARNING
+  JOB_EARNING
+  RENTAL_EARNING
+  TRANSPORT_EARNING
+  BUSINESS_SALE
+  INPUT_PURCHASE
+  MACHINERY_RENTAL
+  WORKER_PAYMENT
+  TRANSPORT
+  REPAIR
+  EQUIPMENT
+  SERVICE
+  WALLET_TOPUP
+  WALLET_WITHDRAWAL
+  SECURITY_DEPOSIT
+  OTHER
+}
+
+enum LedgerAccountType {
+  CUSTOMER_CLEARING
+  PLATFORM_REVENUE
+  PROVIDER_PAYABLE
+  REFUND_SUSPENSE
+  ESCROW_HOLD
+  WALLET_AVAILABLE
+  TREASURY
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  ON_HOLD
+}
+
+enum PayoutDestinationType {
+  BANK_ACCOUNT
+  UPI
+  OTHER_SUPPORTED_METHOD
+}
+
+enum PayoutDestinationStatus {
+  ACTIVE
+  INACTIVE
+  VERIFIED
+}
+
+enum TopUpStatus {
+  CREATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ReconciliationStatus {
+  MATCHED
+  MISMATCHED
+  MISSING_INTERNAL
+  MISSING_EXTERNAL
+  RESOLVED
+}
+
+enum SettlementStatus {
+  PENDING
+  ELIGIBLE
+  PROCESSING
+  COMPLETED
+  FAILED
+  ON_HOLD
+}
+
+enum EarningStatus {
+  PENDING
+  ELIGIBLE
+  SETTLED
+  ON_HOLD
+}
+
+// ====================================================
+// Milestone 22: Rural Identity, Wallet & Unified Transaction Layer Models
+// ====================================================
+
+model WalletAccount {
+  id              String              @id @default(uuid())
+  ownerId         String
+  owner           User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  currency        String              @default("INR")
+  status          WalletAccountStatus @default(ACTIVE)
+  freezeReason    String?
+  frozenAt        DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  balance         WalletBalance?
+  holds           WalletHold[]
+  topUps          TopUpRequest[]
+  withdrawals     WithdrawalRequest[]
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model WalletBalance {
+  id               String        @id @default(uuid())
+  walletAccountId  String        @unique
+  walletAccount    WalletAccount @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+  availableBalance Float         @default(0.0)
+  pendingBalance   Float         @default(0.0)
+  heldBalance      Float         @default(0.0)
+  currency         String        @default("INR")
+  lastCalculatedAt DateTime      @default(now())
+
+  @@index([walletAccountId])
+}
+
+model WalletHold {
+  id              String           @id @default(uuid())
+  walletAccountId String
+  walletAccount   WalletAccount    @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+  amount          Float
+  currency        String           @default("INR")
+  reason          WalletHoldReason
+  referenceType   String?          // e.g. "RENTAL_DEPOSIT", "BOOKING_DISPUTE"
+  referenceId     String?
+  status          WalletHoldStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  releasedAt      DateTime?
+
+  @@index([walletAccountId])
+  @@index([status])
+  @@index([referenceId])
+}
+
+model FinancialTransaction {
+  id             String                     @id @default(uuid())
+  type           FinancialTransactionType
+  status         FinancialTransactionStatus @default(PENDING)
+  payerId        String?
+  payer          User?                      @relation("PayerTransactions", fields: [payerId], references: [id], onDelete: SetNull)
+  payeeId        String?
+  payee          User?                      @relation("PayeeTransactions", fields: [payeeId], references: [id], onDelete: SetNull)
+  amount         Float
+  currency       String                     @default("INR")
+  referenceType  String?                    // "SERVICE_BOOKING", "RENTAL_BOOKING", "JOB_ASSIGNMENT", "COMMERCE_ORDER", "PRODUCE_ORDER", "TRANSPORT_BOOKING"
+  referenceId    String?
+  category       FinancialCategory          @default(OTHER)
+  description    String?
+  metadata       Json?
+  idempotencyKey String?                    @unique
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  ledgerEntries  LedgerEntry[]
+
+  @@index([payerId])
+  @@index([payeeId])
+  @@index([type])
+  @@index([status])
+  @@index([category])
+  @@index([referenceType, referenceId])
+}
+
+model LedgerEntry {
+  id            String               @id @default(uuid())
+  transactionId String
+  transaction   FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  accountType   LedgerAccountType
+  accountId     String               // User ID or system account identifier e.g. "platform-treasury"
+  entryType     LedgerEntryType
+  amount        Float
+  currency      String               @default("INR")
+  createdAt     DateTime             @default(now())
+
+  @@index([transactionId])
+  @@index([accountId])
+  @@index([accountType])
+}
+
+model ProviderEarning {
+  id            String        @id @default(uuid())
+  providerId    String
+  provider      User          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  referenceType String        // "SERVICE_BOOKING", "RENTAL_BOOKING", "JOB_ASSIGNMENT", "COMMERCE_ORDER", "TRANSPORT_BOOKING"
+  referenceId   String
+  grossAmount   Float
+  platformFee   Float         @default(0.0)
+  adjustments   Float         @default(0.0)
+  netAmount     Float
+  status        EarningStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  settledAt     DateTime?
+
+  @@index([providerId])
+  @@index([referenceType, referenceId])
+  @@index([status])
+}
+
+model Settlement {
+  id              String           @id @default(uuid())
+  providerId      String
+  provider        User             @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  referenceType   String
+  referenceId     String
+  amount          Float
+  currency        String           @default("INR")
+  status          SettlementStatus @default(PENDING)
+  eligibleAt      DateTime?
+  processedAt     DateTime?
+  payoutReference String?
+  holdReason      String?
+  createdAt       DateTime         @default(now())
+
+  @@index([providerId])
+  @@index([status])
+  @@index([referenceType, referenceId])
+}
+
+model WithdrawalRequest {
+  id                String            @id @default(uuid())
+  walletAccountId   String
+  walletAccount     WalletAccount     @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount            Float
+  currency          String            @default("INR")
+  destinationId     String
+  destination       PayoutDestination @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  status            WithdrawalStatus  @default(REQUESTED)
+  requestedAt       DateTime          @default(now())
+  processedAt       DateTime?
+  failureReason     String?
+  externalReference String?
+
+  @@index([walletAccountId])
+  @@index([userId])
+  @@index([status])
+  @@index([destinationId])
+}
+
+model PayoutDestination {
+  id                String                  @id @default(uuid())
+  userId            String
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              PayoutDestinationType   @default(UPI)
+  provider          String                  @default("NPCI_UPI") // "RAZORPAYX", "SBI_DIRECT", "NPCI_UPI"
+  externalReference String?
+  maskedIdentifier  String                  // e.g. "••••4829", "kiran@oksbi"
+  accountHolderName String
+  status            PayoutDestinationStatus @default(ACTIVE)
+  createdAt         DateTime                @default(now())
+
+  withdrawals       WithdrawalRequest[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model TopUpRequest {
+  id              String        @id @default(uuid())
+  walletAccountId String
+  walletAccount   WalletAccount @relation(fields: [walletAccountId], references: [id], onDelete: Cascade)
+  amount          Float
+  currency        String        @default("INR")
+  paymentId       String?
+  status          TopUpStatus   @default(CREATED)
+  createdAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  @@index([walletAccountId])
+  @@index([status])
+}
+
+model ReconciliationRecord {
+  id                    String               @id @default(uuid())
+  provider              String               // "RAZORPAY", "STRIPE", "UPI_GATEWAY", "BANK_PARTNER"
+  externalTransactionId String
+  internalTransactionId String
+  externalAmount        Float
+  internalAmount        Float
+  currency              String               @default("INR")
+  status                ReconciliationStatus @default(MATCHED)
+  difference            Float                @default(0.0)
+  notes                 String?
+  checkedAt             DateTime             @default(now())
+
+  @@index([provider])
+  @@index([status])
+  @@index([externalTransactionId])
+  @@index([internalTransactionId])
+}
+
+model FinancialAuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  action       String   // "PAYMENT_PROCESSED", "LEDGER_POSTED", "WITHDRAWAL_REQUESTED", "WALLET_FROZEN", "RECONCILIATION_RUN"
+  resourceType String   // "WALLET", "TRANSACTION", "SETTLEMENT", "WITHDRAWAL"
+  resourceId   String
+  oldState     String?
+  newState     String?
+  ipAddress    String?
+  requestId    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+}
+
 
 
