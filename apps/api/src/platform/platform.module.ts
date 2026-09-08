@@ -119,3 +119,4 @@ export class PlatformModule implements NestModule {
     consumer.apply(ApiObservabilityMiddleware).forRoutes('v1', 'platform');
   }
 }
+

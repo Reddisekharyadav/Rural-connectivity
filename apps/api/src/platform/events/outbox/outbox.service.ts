@@ -178,3 +178,4 @@ export class OutboxService {
     return { items: paginated, total };
   }
 }
+

@@ -30,3 +30,4 @@ export interface JobCompletedV1 {
   completedAt: string;
   rating?: number;
 }
+

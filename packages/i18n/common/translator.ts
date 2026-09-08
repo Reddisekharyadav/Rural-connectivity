@@ -25,3 +25,4 @@ export function translate(key: string, locale: SupportedLocale = 'en', fallback?
 }
 
 export const t = translate;
+

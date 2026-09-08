@@ -40,3 +40,4 @@ export const teTranslations: Record<string, string> = {
   'msg.sync_success': 'ఆఫ్‌లైన్ మార్పులు విజయవంతంగా సమకాలీకరించబడ్డాయి',
   'msg.voice_listening': 'తెలుగు లేదా ఇంగ్లీష్ లో మాట్లాడండి...',
 };
+

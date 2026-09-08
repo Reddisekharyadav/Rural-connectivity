@@ -40,3 +40,4 @@ export class FpoAdapter implements IntegrationAdapter {
     return { acknowledged: true };
   }
 }
+

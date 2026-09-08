@@ -29,3 +29,4 @@ export interface IntegrationAdapter {
   send(payload: any): Promise<any>;
   receive(payload: any): Promise<any>;
 }
+

@@ -23,3 +23,4 @@ export interface PaymentFailedV1 {
   failureReason: string;
   failedAt: string;
 }
+

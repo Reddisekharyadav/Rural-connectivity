@@ -29,3 +29,4 @@ export class IntegrationController {
     return this.integrationService.getHealthStatus();
   }
 }
+

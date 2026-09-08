@@ -14,3 +14,4 @@ export interface MaskedFieldSpec {
   classification: DataClassificationLevel;
   maskPattern?: (val: any) => any;
 }
+

@@ -49,3 +49,4 @@ export function errorResponse(code: string, message: string, details?: any): Api
     },
   };
 }
+

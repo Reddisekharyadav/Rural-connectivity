@@ -40,3 +40,4 @@ export const enTranslations: Record<string, string> = {
   'msg.sync_success': 'All offline changes synchronized successfully',
   'msg.voice_listening': 'Listening for voice input in Telugu or English...',
 };
+

@@ -10,3 +10,4 @@ export class VoiceInterfaceController {
     return this.voiceService.parseVoiceIntent(transcript || '');
   }
 }
+

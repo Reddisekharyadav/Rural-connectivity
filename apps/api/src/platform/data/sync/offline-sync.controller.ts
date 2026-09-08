@@ -30,3 +30,4 @@ export class OfflineSyncController {
     return this.syncService.processSyncBatch(body);
   }
 }
+

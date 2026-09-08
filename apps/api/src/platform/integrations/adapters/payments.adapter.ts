@@ -41,3 +41,4 @@ export class PaymentsAdapter implements IntegrationAdapter {
     return { verified: true, signatureValid: true };
   }
 }
+

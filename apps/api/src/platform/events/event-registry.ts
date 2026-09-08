@@ -163,3 +163,4 @@ export const DOMAIN_EVENT_REGISTRY: Record<string, EventDefinition> = {
     description: 'Triggered when destination pod is signed',
   },
 };
+
