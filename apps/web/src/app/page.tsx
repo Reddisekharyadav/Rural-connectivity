@@ -37,6 +37,7 @@ import {
   ShoppingBag,
   BookOpen,
   Landmark,
+  Store,
 } from 'lucide-react';
 
 export type RoleType = 'FARMER' | 'TRACTOR_OWNER' | 'CONTRACTOR' | 'SKILLED_WORKER' | 'SUPPLIER' | 'EQUIPMENT_OWNER';
@@ -519,6 +520,14 @@ export default function FuturisticHome() {
             >
               <Wrench className="w-3.5 h-3.5 text-amber-400" />
               <span>Asset Rental & Machinery Grid</span>
+            </Link>
+
+            <Link
+              href="/commerce"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-500/20 to-emerald-500/20 border border-blue-500/40 text-blue-300 font-bold text-xs hover:bg-blue-500/30 transition shadow-sm ml-1 whitespace-nowrap"
+            >
+              <Store className="w-3.5 h-3.5 text-blue-400" />
+              <span>Rural Commerce & Shops</span>
             </Link>
 
             <Link

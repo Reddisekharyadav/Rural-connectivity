@@ -23,7 +23,7 @@ export default function AssetsMarketplacePage() {
   const [bookingSuccessAlert, setBookingSuccessAlert] = useState<string | null>(null);
 
   // Sample Assets Inventory
-  const [assets, setAssets] = useState([
+  const [assets] = useState([
     {
       id: 'ast-001',
       name: 'John Deere 5050D PowerPro',
@@ -221,7 +221,7 @@ export default function AssetsMarketplacePage() {
   ]);
 
   // Sample Maintenance State
-  const [maintenanceRecords, setMaintenanceRecords] = useState([
+  const [maintenanceRecords] = useState([
     {
       id: 'maint-001',
       assetId: 'ast-001',

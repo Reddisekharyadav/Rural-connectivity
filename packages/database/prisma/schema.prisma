@@ -33,6 +33,14 @@ enum RoleType {
   FIELD_OFFICER
   TRANSPORT_PROVIDER
   LOGISTICS_OPERATOR
+  // Milestone 21 Commerce Roles
+  LOCAL_BUSINESS
+  RETAILER
+  TECHNICIAN
+  REPAIR_SHOP
+  ARTISAN
+  SHOP_OWNER
+  DELIVERY_PROVIDER
 }
 
 enum VerificationStatus {
@@ -190,6 +198,9 @@ model Location {
   workerProfiles          WorkerProfile[]
   assetsBased             Asset[]              @relation("AssetBaseLocation")
   rentalRequestsLocation  RentalRequest[]      @relation("RentalRequestLocation")
+  businessLocations       BusinessLocation[]
+  businessProfiles        BusinessProfile[]
+  serviceListingsLocation ServiceListing[]
 
   @@index([district, mandal, village])
   @@index([latitude, longitude])
@@ -293,6 +304,12 @@ model User {
   assetHandoversGiven      AssetHandover[]        @relation("HandoverGiver")
   assetHandoversReceived   AssetHandover[]        @relation("HandoverReceiver")
   assetInspectionsConducted AssetInspection[]     @relation("AssetInspectedBy")
+
+  // Rural Commerce & Local Business Marketplace (Milestone 21)
+  ownedBusinesses          BusinessProfile[]      @relation("BusinessOwner")
+  buyerEnquiries           ProductEnquiry[]       @relation("BuyerEnquiries")
+  buyerCommerceQuotes      CommerceQuote[]        @relation("BuyerCommerceQuotes")
+  buyerCommerceOrders      CommerceOrder[]        @relation("BuyerCommerceOrders")
 }
 
 model UserRoleEntry {
@@ -1058,6 +1075,7 @@ model Organization {
   jobPostings         JobPosting[]
   assets              Asset[]              @relation("OrganizationAssets")
   assetAccessPolicies AssetAccessPolicy[]
+  businesses          BusinessProfile[]
 
   @@index([type])
   @@index([locationId])
@@ -3249,4 +3267,372 @@ model AssetAccessPolicy {
   @@index([organizationId])
   @@index([accessType])
 }
+
+// ----------------------------------------------------
+// 21. Rural Commerce & Local Business Marketplace (Milestone 21)
+// ----------------------------------------------------
+
+enum BusinessType {
+  AGRI_INPUT_SHOP
+  MACHINERY_DEALER
+  SPARE_PARTS_SHOP
+  REPAIR_SHOP
+  MECHANIC
+  ELECTRICAL_SERVICE
+  PLUMBING_SERVICE
+  WELDING_SERVICE
+  FABRICATION
+  CONSTRUCTION
+  TRANSPORT
+  EQUIPMENT_REPAIR
+  GENERAL_RETAIL
+  LOCAL_SERVICE
+  OTHER
+}
+
+enum CommerceProductCategory {
+  TOOLS
+  HARDWARE
+  SPARE_PARTS
+  ELECTRICAL
+  PLUMBING
+  CONSTRUCTION
+  FARM_EQUIPMENT
+  MACHINERY_PARTS
+  SAFETY
+  PACKAGING
+  HOUSEHOLD
+  GENERAL
+  OTHER
+}
+
+enum ServicePricingModel {
+  FIXED
+  PER_HOUR
+  PER_DAY
+  PER_VISIT
+  PER_UNIT
+  INSPECTION_FIRST
+  NEGOTIABLE
+}
+
+enum CommerceOrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum FulfillmentMethod {
+  PICKUP
+  LOCAL_DELIVERY
+  THIRD_PARTY_LOGISTICS
+}
+
+enum InventoryTransactionType {
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+  RESERVATION
+  RELEASE
+  RETURN
+  DAMAGED
+}
+
+enum CommerceQuoteStatus {
+  DRAFT
+  SUBMITTED
+  COUNTERED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum EnquiryStatus {
+  OPEN
+  QUOTED
+  RESOLVED
+  CLOSED
+}
+
+model BusinessProfile {
+  id                 String             @id @default(uuid())
+  ownerId            String
+  owner              User               @relation("BusinessOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  organizationId     String?
+  organization       Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  businessName       String             // e.g. "Sri Sai Agro Machinery & Spare Parts"
+  businessType       BusinessType       @default(GENERAL_RETAIL)
+  description        String?
+  phone              String
+  email              String?
+  locationId         String
+  location           Location           @relation(fields: [locationId], references: [id])
+  serviceRadiusKm    Float              @default(15.0)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  rating             Float              @default(5.0)
+  totalReviews       Int                @default(0)
+  status             String             @default("ACTIVE")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  locations          BusinessLocation[]
+  products           BusinessProduct[]
+  services           ServiceListing[]
+  orders             CommerceOrder[]    @relation("SellerBusinessOrders")
+  enquiries          ProductEnquiry[]
+  quotes             CommerceQuote[]
+
+  @@index([ownerId])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([businessType])
+  @@index([status])
+}
+
+model BusinessLocation {
+  id           String          @id @default(uuid())
+  businessId   String
+  business     BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name         String          // e.g. "Main Shop", "Tandur Market Branch"
+  locationId   String
+  location     Location        @relation(fields: [locationId], references: [id])
+  phone        String?
+  openingTime  String          @default("08:00")
+  closingTime  String          @default("20:00")
+  isPrimary    Boolean         @default(true)
+  status       String          @default("ACTIVE")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  products     BusinessProduct[]
+
+  @@index([businessId])
+  @@index([locationId])
+}
+
+model CommerceProduct {
+  id               String                  @id @default(uuid())
+  name             String                  // e.g. "John Deere Spin-on Oil Filter", "3-inch Heavy Delivery Hose"
+  description      String?
+  category         CommerceProductCategory @default(GENERAL)
+  brand            String?
+  model            String?
+  sku              String?
+  unit             String                  @default("PIECE") // PIECE, METER, SET, BOX, KG, LITRE
+  status           String                  @default("ACTIVE")
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  compatibilities  ProductCompatibility[]
+  businessProducts BusinessProduct[]
+  enquiries        ProductEnquiry[]
+
+  @@index([category])
+  @@index([brand])
+  @@index([status])
+}
+
+model BusinessProduct {
+  id                   String                 @id @default(uuid())
+  businessId           String
+  business             BusinessProfile        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessLocationId   String?
+  businessLocation     BusinessLocation?      @relation(fields: [businessLocationId], references: [id], onDelete: SetNull)
+  productId            String
+  product              CommerceProduct        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku                  String?
+  price                Float                  // Selling price in INR
+  currency             String                 @default("INR")
+  stockQuantity        Int                    @default(0)
+  reservedQuantity     Int                    @default(0)
+  minimumOrderQuantity Int                    @default(1)
+  status               String                 @default("ACTIVE")
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  inventoryTransactions InventoryTransaction[]
+  orderItems           CommerceOrderItem[]
+
+  @@index([businessId])
+  @@index([businessLocationId])
+  @@index([productId])
+  @@index([status])
+}
+
+model ProductCompatibility {
+  id          String           @id @default(uuid())
+  productId   String
+  product     CommerceProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  assetType   AssetType?       // TRACTOR, SPRAYER, PUMP, HARVESTER, TRAILER
+  brand       String?          // e.g. "John Deere", "Mahindra", "Kirloskar"
+  model       String?          // e.g. "5050D", "575 DI", "KDS-750"
+  variant     String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+
+  @@index([productId])
+  @@index([assetType, brand, model])
+}
+
+model InventoryTransaction {
+  id                String                   @id @default(uuid())
+  businessProductId String
+  businessProduct   BusinessProduct          @relation(fields: [businessProductId], references: [id], onDelete: Cascade)
+  type              InventoryTransactionType
+  quantity          Int                      // positive for stock in/release, negative for stock out/reservation
+  referenceType     String?                  // "COMMERCE_ORDER", "MANUAL_ADJUSTMENT", "PURCHASE_RECEIPT"
+  referenceId       String?
+  notes             String?
+  createdAt         DateTime                 @default(now())
+
+  @@index([businessProductId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model ServiceCategory {
+  id          String            @id @default(uuid())
+  name        String            // e.g. "Tractor Engine Repair", "Submersible Pump Service", "Welding & Fabrication"
+  description String?
+  parentId    String?
+  parent      ServiceCategory?  @relation("ServiceCategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    ServiceCategory[] @relation("ServiceCategoryHierarchy")
+  status      String            @default("ACTIVE")
+  createdAt   DateTime          @default(now())
+
+  listings    ServiceListing[]
+
+  @@index([parentId])
+  @@index([status])
+}
+
+model ServiceListing {
+  id                  String              @id @default(uuid())
+  businessId          String
+  business            BusinessProfile     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  categoryId          String
+  category            ServiceCategory     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?
+  pricingModel        ServicePricingModel @default(FIXED)
+  basePrice           Float?              // e.g. 500.0 (Fixed or Base Visit)
+  hourlyRate          Float?              // e.g. 150.0 / hour
+  inspectionFee       Float?              @default(0.0)
+  currency            String              @default("INR")
+  serviceRadiusKm     Float               @default(20.0)
+  locationId          String?
+  location            Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  requiresAppointment Boolean             @default(true)
+  status              String              @default("ACTIVE")
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([businessId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model ProductEnquiry {
+  id         String          @id @default(uuid())
+  businessId String
+  business   BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  buyerId    String
+  buyer      User            @relation("BuyerEnquiries", fields: [buyerId], references: [id], onDelete: Cascade)
+  productId  String?
+  product    CommerceProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  message    String
+  quantity   Int?            @default(1)
+  status     EnquiryStatus   @default(OPEN)
+  createdAt  DateTime        @default(now())
+
+  quotes     CommerceQuote[]
+
+  @@index([businessId])
+  @@index([buyerId])
+  @@index([productId])
+  @@index([status])
+}
+
+model CommerceQuote {
+  id           String              @id @default(uuid())
+  enquiryId    String?
+  enquiry      ProductEnquiry?     @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  businessId   String
+  business     BusinessProfile     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  buyerId      String
+  buyer        User                @relation("BuyerCommerceQuotes", fields: [buyerId], references: [id], onDelete: Cascade)
+  subtotal     Float
+  deliveryCost Float               @default(0.0)
+  tax          Float               @default(0.0)
+  discount     Float               @default(0.0)
+  total        Float
+  currency     String              @default("INR")
+  validUntil   DateTime?
+  status       CommerceQuoteStatus @default(SUBMITTED)
+  notes        String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  orders       CommerceOrder[]
+
+  @@index([enquiryId])
+  @@index([businessId])
+  @@index([buyerId])
+  @@index([status])
+}
+
+model CommerceOrder {
+  id                   String              @id @default(uuid())
+  orderNumber          String              @unique // e.g. "ORD-2026-0001"
+  buyerId              String
+  buyer                User                @relation("BuyerCommerceOrders", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerBusinessId     String
+  sellerBusiness       BusinessProfile     @relation("SellerBusinessOrders", fields: [sellerBusinessId], references: [id], onDelete: Cascade)
+  quoteId              String?
+  quote                CommerceQuote?      @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  fulfillmentMethod    FulfillmentMethod   @default(PICKUP)
+  deliveryLocationId   String?
+  subtotal             Float
+  deliveryCost         Float               @default(0.0)
+  tax                  Float               @default(0.0)
+  discount             Float               @default(0.0)
+  total                Float
+  currency             String              @default("INR")
+  status               CommerceOrderStatus @default(PENDING)
+  paymentId            String?
+  transportBookingId   String?
+  orderedAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  items                CommerceOrderItem[]
+
+  @@index([buyerId])
+  @@index([sellerBusinessId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+model CommerceOrderItem {
+  id                String          @id @default(uuid())
+  orderId           String
+  order             CommerceOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  businessProductId String
+  businessProduct   BusinessProduct @relation(fields: [businessProductId], references: [id], onDelete: Cascade)
+  quantity          Int
+  unit              String          @default("PIECE")
+  unitPrice         Float
+  totalAmount       Float
+  createdAt         DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([businessProductId])
+}
+
 

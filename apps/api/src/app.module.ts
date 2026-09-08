@@ -45,6 +45,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
 import { FinancialModule } from './financial/financial.module';
 import { WorkforceModule } from './workforce/workforce.module';
 import { AssetsModule } from './assets/assets.module';
+import { CommerceModule } from './commerce/commerce.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { AssetsModule } from './assets/assets.module';
     FinancialModule,
     WorkforceModule,
     AssetsModule,
+    CommerceModule,
     AuthModule,
     UsersModule,
     FarmersModule,
