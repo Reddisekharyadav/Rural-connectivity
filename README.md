@@ -4,6 +4,16 @@ A comprehensive platform connecting rural agricultural stakeholders for seamless
 
 ---
 
+## 🌐 Documentation & Downloads
+
+Once GitHub Pages is enabled for this repository, the public documentation and Android download page will be available at:
+
+**https://kuruvamunirangadu.github.io/Rural-connectivity/**
+
+The page includes the latest Android release link, installation instructions, product guides, architecture documentation, and the source repository.
+
+---
+
 ## 📲 Mobile App (Direct Android APK Download)
 
 Get the standalone native Android application for direct installation on mobile devices:
