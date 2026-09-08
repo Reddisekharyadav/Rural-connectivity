@@ -28,6 +28,9 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Set repository links
+        run: sed -i "s|__REPOSITORY__|${GITHUB_REPOSITORY}|g" docs/index.html
+
       - name: Upload documentation
         uses: actions/upload-pages-artifact@v3
         with:
