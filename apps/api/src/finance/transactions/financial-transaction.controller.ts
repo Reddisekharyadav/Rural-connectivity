@@ -34,3 +34,4 @@ export class FinancialTransactionController {
     return this.txService.getTransactionById(id);
   }
 }
+

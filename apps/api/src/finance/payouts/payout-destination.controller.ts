@@ -29,3 +29,4 @@ export class PayoutDestinationController {
     return this.payoutService.deleteDestination(id, userId);
   }
 }
+

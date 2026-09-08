@@ -55,3 +55,4 @@ export class WalletBalanceService {
     return balance;
   }
 }
+

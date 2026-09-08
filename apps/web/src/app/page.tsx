@@ -38,6 +38,7 @@ import {
   BookOpen,
   Landmark,
   Store,
+  Terminal,
 } from 'lucide-react';
 
 export type RoleType = 'FARMER' | 'TRACTOR_OWNER' | 'CONTRACTOR' | 'SKILLED_WORKER' | 'SUPPLIER' | 'EQUIPMENT_OWNER';
@@ -536,6 +537,14 @@ export default function FuturisticHome() {
             >
               <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
               <span>Unified Wallet & Finance</span>
+            </Link>
+
+            <Link
+              href="/developers"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-emerald-500/20 border border-purple-500/40 text-purple-300 font-bold text-xs hover:bg-purple-500/30 transition shadow-sm ml-1 whitespace-nowrap"
+            >
+              <Terminal className="w-3.5 h-3.5 text-purple-400" />
+              <span>Open Platform & APIs</span>
             </Link>
 
             <Link

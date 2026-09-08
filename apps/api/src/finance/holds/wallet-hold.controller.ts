@@ -23,3 +23,4 @@ export class WalletHoldController {
     return this.holdService.captureHold(id);
   }
 }
+

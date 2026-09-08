@@ -1,0 +1,14 @@
+{
+  "name": "@ruralconnect/data-contracts",
+  "version": "1.0.0",
+  "description": "Stable versioned data contracts and DTOs for RuralConnect Platform APIs and Event Bus",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
